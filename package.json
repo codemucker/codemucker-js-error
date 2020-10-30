@@ -2,7 +2,7 @@
   "name": "@codemucker/error",
   "description": "Contains some basic error helpers and wrappers",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "authors": [
     "Bert van Brakel"
   ],
