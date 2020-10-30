@@ -1,5 +1,5 @@
 {
-  "name": "@codemucker/ts-error",
+  "name": "@codemucker/error",
   "description": "Contains some basic error helpers and wrappers",
   "license": "MIT",
   "version": "0.1.0",
@@ -12,7 +12,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:codemucker/codemucker-ts-error.git"
+    "url": "git@github.com:codemucker/codemucker-js-error.git"
   },
   "private": false,
   "main": "build/js/src/index.js",
