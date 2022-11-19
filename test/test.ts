@@ -1,7 +1,7 @@
-import { AppError } from '@/index'
+import { MessageApiError } from '@/index'
 
 describe('smoke tests', () => {
   test('can create error', () => {
-    new AppError({})
+    new MessageApiError({})
   })
 })

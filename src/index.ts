@@ -1,62 +1,162 @@
-/**
- * Common error handling routines and classes
- */
+export * from './error'
 
-export interface AppErrorOptions {
-  key?: string
-  message?: string
-  details?: string
-  data?: { [key: string]: any }
-  cause?: any
-  captureStack?: boolean
+export interface Message<_TResponse = void> {
+  readonly messageName: string
+
+  /**
+   * Id of this message
+   */
+  readonly messageId?: string
+
+  /**
+   * If of the request sending the message. Multiple messages could be sent per request
+   */
+  readonly requestId?: string
+
+  /**
+   * And id to correlate a number of seemingly disparate messages
+   */
+  readonly correlationId?: string
+
+  /**
+   * Some message source originator local tracking id
+   */
+  readonly sourceId?: string
 }
 
-// from https://github.com/floatdrop/capture-stack-trace/blob/master/index.js but no type info so just copy it
-const captureStackTrace =
-  Error.captureStackTrace ||
-  function (error: any) {
-    var container = new Error()
+export interface Event<TPayload> extends Message<void> {
+  payload: TPayload
+}
 
-    Object.defineProperty(error, 'stack', {
-      configurable: true,
-      get: function getStack() {
-        var stack = container.stack
+export interface Command<TPayload> extends Message<CommandResponse> {
+  payload: TPayload
+}
 
-        Object.defineProperty(this, 'stack', {
-          value: stack,
-        })
+export class Command<TPayload> implements Command<TPayload> {
+  constructor(public readonly messageName: string, public payload: TPayload) {}
 
-        return stack
-      },
-    })
+  async invoke(api: MessageApi): Promise<CommandResponse> {
+    return api.command<TPayload>(this)
   }
+}
 
-//in node V8 this exists and also removes all stack frame after the first arg
-const setStackTrace = Error['captureStackTrace'] || captureStackTrace
-/**
- * Base of all errors.
- *
- * See https://www.bennadel.com/blog/2828-creating-custom-error-objects-in-node-js-with-error-capturestacktrace.htm
- *
- **/
-export class AppError extends Error {
-  readonly key?: string
-  readonly details?: string
-  readonly cause?: any
-  readonly isAppError?: boolean
-  readonly extendedInfo: { [key: string]: any }
+export interface CommandResponse {
+  readonly correlationId?: string
+  /**
+   * The id of the initiating request
+   */
+  readonly requestId?: string
+  /**
+   * The id of the source message intiating this response
+   */
+  readonly messageId?: string
+  /**
+   * The id of the response. Can be used to poll/query on the outcome of this command
+   */
+  readonly responseId?: string
+}
 
-  constructor(opts: AppErrorOptions, ctorFunc?: Function) {
-    super(opts.key ? `${opts.key}: ${opts.message}` : opts.message)
-    this.key = opts.key
-    this.details = opts.details
-    this.cause = opts.cause || null
-    this.extendedInfo = opts.data ? opts.data : {}
+export class CommandResponse implements CommandResponse {
+  constructor(public readonly commandId?: string) {}
+}
+export interface GetQueryOptions {
+  failIfNotFound?: boolean
+}
 
-    // flag that will indicate if the error is a custom AppError.
-    this.isAppError = true
-    if (opts.captureStack != false) {
-      setStackTrace(this, ctorFunc || AppError)
-    }
+export interface GetQuery<TCriteria, TResult>
+  extends Message<FindQueryResponse<TResult>> {
+  readonly criteria: TCriteria
+  readonly options: GetQueryOptions
+}
+
+export abstract class GetQuery<TCriteria, TResult>
+  implements GetQuery<TCriteria, TResult> {
+  constructor(
+    public readonly messageName: string,
+    public readonly criteria: TCriteria,
+    public readonly options: GetQueryOptions = {}
+  ) {}
+
+  async invoke(api: MessageApi): Promise<GetQueryResponse<TResult>> {
+    return api.get<TCriteria, TResult>(this)
   }
+}
+
+export interface GetQueryResponse<TResult> {
+  readonly result: TResult
+}
+
+export class GetQueryResponse<TResult> implements GetQueryResponse<TResult> {
+  constructor(public readonly result: TResult) {}
+}
+
+export interface FindQueryOptions {
+  limit?: number
+}
+
+export interface FindQuery<TCriteria, TResult>
+  extends Message<FindQueryResponse<TResult>> {
+  readonly criteria: TCriteria
+  readonly options: FindQueryOptions
+}
+
+export abstract class FindQuery<TCriteria, TResult>
+  implements FindQuery<TCriteria, TResult> {
+  limit = 100
+
+  constructor(
+    public readonly messageName: string,
+    public readonly criteria: TCriteria,
+    public readonly options: FindQueryOptions = {}
+  ) {}
+
+  async invoke(api: MessageApi): Promise<FindQueryResponse<TResult>> {
+    return api.find<TCriteria, TResult>(this)
+  }
+}
+
+export interface FindQueryResponse<TResult> {
+  readonly results: Array<TResult>
+  readonly offset: number
+  readonly hasMore: boolean
+}
+
+export class FindQueryResponse<TResult> implements FindQueryResponse<TResult> {
+  constructor(
+    public readonly results: Array<TResult>,
+    public readonly offset = 0,
+    public readonly hasMore = false
+  ) {}
+}
+
+export interface MessageApi {
+  /**
+   * Send a typed get message and get a typed response back
+   * @param query
+   */
+  get<TCriteria, TResult>(
+    query: GetQuery<TCriteria, TResult>
+  ): Promise<GetQueryResponse<TResult>>
+
+  /**
+   * Send a typed find message and get a typed response back
+   * @param find
+   */
+  find<TCriteria, TResult>(
+    find: FindQuery<TCriteria, TResult>
+  ): Promise<FindQueryResponse<TResult>>
+
+  /**
+   * Send a typed command message and get a typed response back
+   * @param command
+   */
+  command<TPayload>(command: Command<TPayload>): Promise<CommandResponse>
+
+  /**
+   * generic message. Returns a command, query, or get response
+   * @param message
+   */
+  invoke<TMessage extends Message<TResponse>, TResponse = void>(
+    message: TMessage
+  ): Promise<TResponse>
 }
