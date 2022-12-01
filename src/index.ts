@@ -70,7 +70,8 @@ export interface GetQuery<TCriteria, TResult>
 }
 
 export abstract class GetQuery<TCriteria, TResult>
-  implements GetQuery<TCriteria, TResult> {
+  implements GetQuery<TCriteria, TResult>
+{
   constructor(
     public readonly messageName: string,
     public readonly criteria: TCriteria,
@@ -101,7 +102,8 @@ export interface FindQuery<TCriteria, TResult>
 }
 
 export abstract class FindQuery<TCriteria, TResult>
-  implements FindQuery<TCriteria, TResult> {
+  implements FindQuery<TCriteria, TResult>
+{
   limit = 100
 
   constructor(
